@@ -1,0 +1,306 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOO2kVOBX+ZLpFovMWgH6KM",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/acarbegum/acarbegum/blob/main/Temel%20transformer%20mimarisi\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Y6fczsWZC5LA"
+      },
+      "outputs": [],
+      "source": [
+        "import math\n",
+        "import torch\n",
+        "import torch.nn as nn\n",
+        "import torch.nn.functional as F\n",
+        "\n",
+        "torch.manuel_seed (42)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class PostionalEncoding(nn.Module):\n",
+        "  def_init_(self, d_model, max_len=5000):\n",
+        "    super()._init_()\n",
+        "    pe = torch.zeros(max_len, d_model)\n",
+        "    position=torch.arrange(0, max_len, dtype=torch.float).unsqueeze(1)\n",
+        "    div_term = torch.exp(torch.arrange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))\n",
+        "    pe[:, 0::2] = torch.sin(position * div_term)\n",
+        "    pe[:, 1::2] = torch.cos(position * div_term)\n",
+        "    self.register_buffer(\"pe\", pe.unsqueeze(0))\n",
+        "\n",
+        "  def forward(self, x):\n",
+        "    return x + self.pe[:, :x.size(1), :]"
+      ],
+      "metadata": {
+        "id": "OAYyFiAiDemd"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class MultiHeadAttention(nn.Module):\n",
+        "  def __init__(self, d_model, num_heads):\n",
+        "    super()._init_()\n",
+        "    self.d_model = d_model\n",
+        "    self.num_heads = num_heads\n",
+        "    self.d_k = d_model // num_heads\n",
+        "\n",
+        "    self.W_q = nn.Linear(d_model, d_model)\n",
+        "    self.W_k = nn.Linear(d_model, d_model)\n",
+        "    self.W_v = nn.Linear(d_model, d_model)\n",
+        "    self.W_o = nn.Linear(d_model, d_model)\n",
+        "\n",
+        "  def split_heads (self, x):\n",
+        "    batch_size, seq_length, _ = x.size()\n",
+        "    return x.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)\n",
+        "\n",
+        "  def combine_heads(self, x):\n",
+        "    batch_size, _, seq_length, _ = x.size()\n",
+        "    return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)\n",
+        "\n",
+        "  def forward(self, query, key, value, mask=None):\n",
+        "    Q = self.split_heads(self.W_q(query))\n",
+        "    K = self.split_heads(self.W_k(key))\n",
+        "    V = self.split_heads(self.W_v(value))\n",
+        "\n",
+        "    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)\n",
+        "    if mask is not None:\n",
+        "      scores = scores.masked_fill(mask == 0, float.8\"-inf\"))\n",
+        "\n",
+        "    attention = F.softmax(scores, dim=-1)\n",
+        "    context = torch.matmul(attn, V)\n",
+        "    output = self.W_o(self.combine_heads(context))\n",
+        "    return output, attn"
+      ],
+      "metadata": {
+        "id": "MFgJ70BAE64o"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class PositionWiseFeedForward(nn.Module):\n",
+        "  def_init_(self, d_model, d_ff, dropout=0.1):\n",
+        "    super()._init_()\n",
+        "    self.linear1 = nn.Linear(d_model, d_ff)\n",
+        "    self.lineer2 = nn.Linear(d_ff, d_model)\n",
+        "    self.dropout = nn.Dropout(dropout)\n",
+        "\n",
+        "  def forward(self, x):\n",
+        "    return self.linear2(self.dropout(F.relu(self.linear1(x))))"
+      ],
+      "metadata": {
+        "id": "gySwT-ZuGMVS"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class EncoderLayer(nn.Module):\n",
+        "  def_init_(self, d_model, num_heads, d_ff, dropout=0.1):\n",
+        "    super()._init_()\n",
+        "    self.self_attn = MultiHeadAttention(d_model, num_heads)\n",
+        "    self.feed_forward = PositionWiseFeedForward(d_model, d_ff, dropout)\n",
+        "    self.norm1 = nn.LayerNorm(d_model)\n",
+        "    self.norm2 = nn.LayerNorm(d_model)\n",
+        "    self.dropout = nn.Dropout(dropout)\n",
+        "\n",
+        "    def forward(self, x, mask=None):\n",
+        "    attn_out, _ = self.self_attn(x, x, x, mask)\n",
+        "    x=self.norm1(x+self.dropout(attn_out))\n",
+        "    ff_out = self.feed_forward(x)\n",
+        "    x=self.norm2(x+self.dropout(ff_out))\n",
+        "    return x"
+      ],
+      "metadata": {
+        "id": "NsORrkySGpow"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class DecoderLayer(nn.Module):\n",
+        "  def_init_(self, d_model, num_heads, d_ff, dropout=0.1):\n",
+        "    super()._init_()\n",
+        "    self.self_attn = MultiHeadAttention(d_model, num_heads)\n",
+        "    self.cross_attn = MultiHeadAttention(d_model, num_heads)\n",
+        "    self.feed_forward = PositionWiseFeedForward(d_model, d_ff, dropout)\n",
+        "    self.norm1 = nn.LayerNorm(d_model)\n",
+        "    self.norm2 = nn.LayerNorm(d_model)\n",
+        "    self.norm3 = nn.LayerNorm(d_model)\n",
+        "    self.dropout = nn.Dropout(dropout)\n",
+        "\n",
+        "  def forward(self, x, enc_output, src_mask=None, tgt_mask=None):\n",
+        "    attn_out, _ = self.self_attn(x, x, x, tgt_mask)\n",
+        "    x=self.norm1(x+self.dropout(attn_out))\n",
+        "\n",
+        "    cross_out, _ = self.cross_attn(x, enc_output, enc_output, src_mask)\n",
+        "    x=self.norm2(x+self.dropout(cross_attn_out))\n",
+        "\n",
+        "    ff_out = self.feed_forward(x)\n",
+        "    x=self.norm3(x+self.dropout(ff_out))\n",
+        "    return x"
+      ],
+      "metadata": {
+        "id": "1p8W8rh8HMkB"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class Transformer(nn.Module):\n",
+        "  def_init_(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8, num_layers=6, d_ff=2048, max_len=100, dropout=0.1):\n",
+        "    super()._init_()\n",
+        "    self.encoder_embedding = nn.Embedding(src_vocab_size, d_model)\n",
+        "    self.decoder_embedding = nn.Embedding(tgt_vocab_size, d_model)\n",
+        "    self.positional_encoding = PostionalEncoding(d_model, max_len)\n",
+        "\n",
+        "    self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])\n",
+        "    self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])\n",
+        "\n",
+        "    self.fc_out = nn.Linear(d_model, tgt_vocab_size)\n",
+        "    self.dropout = nn.Dropout(dropout)\n",
+        "\n",
+        "  def generate_mask(self, src, tgt):\n",
+        "    src_mask = (src != 0).unsqueeze(1).unsqueeze(2)\n",
+        "    tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)\n",
+        "\n",
+        "    seq_len = tgt.size(1)\n",
+        "    nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()\n",
+        "    tgt_mask = tgt_mask & nopeak_mask\n",
+        "    return src_mask, tgt_mask\n",
+        "\n",
+        "  def encode(self, src, src_mask):\n",
+        "    x=self.dropout(self.positional_encoding(self.encoder_embedding(src)))\n",
+        "    for layer in self.encoder_layers:\n",
+        "      x=layer(x, src_mask)\n",
+        "    return x\n",
+        "\n",
+        "  def decode(self, tgt, enc_output, src_mask, tgt_mask):\n",
+        "    x=self.dropout(self.positional_encoding(self.decoder_embedding(tgt)))\n",
+        "    for layer in self.decoder_layers:\n",
+        "      x=layer(x, enc_output, src_mask, tgt_mask)\n",
+        "    return x\n",
+        "\n",
+        "  def forward(self, src, tgt):\n",
+        "    src_mask, tgt_mask = self.generate_mask(src, tgt)\n",
+        "    enc_output = self.encode(src, src_mask)\n",
+        "    dec_output = self.decode(tgt, enc_output, src_mask, tgt_mask)\n",
+        "    return self.fc_out(dec_output)"
+      ],
+      "metadata": {
+        "id": "9xfvv11WH1Yp"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "VOCAB_SIZE = 5000\n",
+        "SEQ_LEN = 8\n",
+        "SOS, EOS, PAD = 0, 1, 2\n",
+        "\n",
+        "def make_batch(batch_size=32, seq_len=seq_len, vocab_size=VOCAB_SIZE):\n",
+        "  seq = torch.randint(3, vocab_size, (batch_size, seq_len))\n",
+        "  src = seq\n",
+        "  tgt_full = torch.cat ([torch.full((batch_size, 1), SOS), seq, torch.full((batch_size, 1), EOS)], dim=1)\n",
+        "  tgt_input = tgt_full[:, :-1]\n",
+        "  tgt_output = tgt_full[:, 1:]\n",
+        "  return src, tgt_input, tgt_output\n",
+        "\n",
+        "toy_model = Transformer(VOCAB_SIZE, VOCAB_SIZE, d_model=64, num_heads=4, num_layers=2, d_ff=128, max_len=20)\n",
+        "optimizer = torch.optim.Adam(toy_model.parameters(), lr=1e-3)\n",
+        "criterion = nn.CrossEntropyLoss(ignore_index=PAD)\n",
+        "\n",
+        "loses = []\n",
+        "for epoch in range(300):\n",
+        "  src, tgt_input, tgt_output = make_batch()\n",
+        "  optimizer.zero_grad()\n",
+        "  logits = toy_model(src, tgt_input)\n",
+        "  loss = criterion(logits.reshape(-1, VOCAB_SIZE), tgt_output.reshape(-1)\n",
+        "  loss.backward()\n",
+        "  optimizer.step()\n",
+        "  loses.append(loss.item())\n",
+        "  if epoch % 50 == 0 or epoch ==299:\n",
+        "    print(f\"Epoch: {epoch:.3d} | Kayip (loss): {loss.item():.4f}\")\n"
+      ],
+      "metadata": {
+        "id": "5t0Nr--MJpE4"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "@torch.no_grad()\n",
+        "def greedy_decode(model, src, max_len=SEQ_LEN + 2):\n",
+        "  model.eval()\n",
+        "  src_mask, _ = model.generate_mask(src, src)\n",
+        "  enc_output = model.encode(src, src_mask)\n",
+        "\n",
+        "  ys = torch.full((src.size(0), 1), SOS, dtype=torch.long)\n",
+        "  for _ in range(max_len - 1):\n",
+        "    _, tgt_mask = model.generate_mask(src, ys)\n",
+        "    output = model.decode(ys, enc_output, src_mask, tgt_mask)\n",
+        "    logits = model.fc_out(output[:, -1, :])\n",
+        "    next_token = logits.argmax(dim=-1, keepdim=True)\n",
+        "    ys = torch.cat([ys, next_token], dim=-1)\n",
+        "  model.train()\n",
+        "  return ys"
+      ],
+      "metadata": {
+        "id": "gdUtcf0oMix8"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "UMktcR7HE5cp"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
