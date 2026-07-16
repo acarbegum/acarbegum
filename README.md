@@ -11,3 +11,8 @@
 - Ask me anything. I probably don't know 🤦‍♀️
 - How to reach me: send positive energy into the universe, we'll cross paths eventually 🤜🤛
 - For sponsorships & collaborations: Oops! wrong profile 😁
+
+## 🌐 Socials:
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/begüm-acar-4bb637116/)
+[![Medium](https://img.shields.io/badge/Medium-000000?style=for-the-badge&logo=medium&logoColor=white)](https://medium.com/@acarbegum)
