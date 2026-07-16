@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="banner.png" width="90%">
+</p>
+
 ## Welcome my profile 👋
 
 <!--
