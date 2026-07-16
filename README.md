@@ -5,7 +5,7 @@
 
 -->
 
-- I’m currently working on Earth 🌏
+- I’m currently living on Earth 🌏
 - I’m looking to collaborate on adventures 🚀
 - I’m still waiting to be abducted by aliens 👽
 - Ask me anything. I probably don't know 🤦‍♀️
